@@ -60,17 +60,19 @@ class GetPartInfo(QMainWindow):
 	def createWindow( self ):
 		self.setWindowTitle("Get Parts info")	#窓のタイトル
 		self.setWindowFlags( Qt.Window | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint )	#常前面表示
-		self.setGeometry( 0, 0, 320, 130)			#窓のサイズ
-		self.setFixedSize( 320, 130 )
+		self.setGeometry( 0, 0, 320, 210)			#窓のサイズ
+		self.setFixedSize( 320, 210 )
 
+		# ラベルの表示 #####
 		LABEL = [
 			"部品番号：",
 			"名　　称：",
 			"型　式　：",
 			"型　式２：",
-			"型　式３："
+			"型　式３：",
+			"備　　考："
 		]
-		self.label = [ ["",""], ["",""], ["",""], ["",""], ["",""] ]
+		self.label = [ ["",""], ["",""], ["",""], ["",""], ["",""], ["",""] ]
 		for ii in range( len( self.label ) ):
 			for jj in range( len( self.label[ii] ) ):
 				if jj == 0:
@@ -83,17 +85,52 @@ class GetPartInfo(QMainWindow):
 				self.label[ii][jj].adjustSize()
 				self.label[ii][jj].setAlignment( Qt.AlignLeft )	#中央揃え
 				self.label[ii][jj].move( 80*jj+10, 25*ii+5 )			#ラベルの位置
+				if ii == 5 and jj == 1 :
+					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 11, QtGui.QFont.Bold ) )
+					self.label[ii][jj].move( 80*0+10, 25*(ii+1)+5 )			#ラベルの位置
+		# ボタン #####
+		self.btn = QPushButton( '●', self )
+		self.btn.setFont( QtGui.QFont( "BIZ UDゴシック", 11, QtGui.QFont.Bold ) )
+		self.btn.setCheckable( True )						
+		self.btn.setGeometry( 270, 0, 40, 25 )	#サイズと表示位置
+		self.btn.pressed.connect( self.opsw )		#押したときの動作
 
 		self.show()	#窓を表示
 
 
+	### 動作ボタンを押したときのイベント ###
+	def opsw( self ):
+		if self.btn.text() == '●':
+			#●(動作中)のときの処理
+			self.btn.setText('■')	#■(停止)に変更
+			self.btn.setStyleSheet("QPushButton{color:#c00000;}")	#文字色：真紅
+			tmpClr = "#AAAAAA"	#ラベルの文字色：灰色(設定値のみ)
+		else:
+			#■(停止)のときの処理
+			self.btn.setText('●')	#●(動作中)に変更
+			self.btn.setStyleSheet("QPushButton{color:#000000;}")	#文字色：黒
+			tmpClr = "#000000"	#ラベルの文字色：黒(設定値のみ)
+			pyperclip.copy( '' )	#クリップボードを初期化
+		for ii in range( len( self.label ) ):
+			for jj in range( len( self.label[ii] ) ):
+				self.label[ii][jj].setStyleSheet("QLabel{color:"+tmpClr+";}")	#ラベルの文字色
+
+
+	### Wクリックしたときのイベント ###
+	def mouseDoubleClickEvent( self, e ):
+		self.opsw( )	
+
+
+
 	def CheckCB( self ):
 		pyperclip.copy( '' )	#クリップボードを初期化
-		while not( eventExit.is_set() ):
+		while not( eventExit.is_set()  ):
 			time.sleep( 0.2 )	#適当なDelay
 			code = pyperclip.waitForPaste()	#クリップボードの更新
 			#code = pyperclip.waitForNewPaste()	#クリップボードの更新
-			if( code != "" and isinstance( code, str ) == True ):	#クリップボードの内容が空でなく、文字列の場合
+			if( code != "" and 
+					isinstance( code, str ) == True and 
+					self.btn.text() == "動作" ):	#クリップボードの内容が空でなく、文字列の場合
 				GetPartInfo.CheckCode( self, code )	#クリップボードの内容をチェック
 
 
@@ -107,17 +144,15 @@ class GetPartInfo(QMainWindow):
 		if rltsExRe:
 			for rltExRe in rltsExRe:	#複数ある部品番号でくり返し
 				# pyperclip.copy( '' )
-				sql = "SELECT PartNo, 品名, 型式, 型式2, 型式3 FROM ttt WHERE PartNo = ?"	#SQL文
+				sql = "SELECT 品コード, 品名, 型式, 型式2, 型式3, 備考 FROM 部品番号 WHERE 品コード = ?"	#SQL文
 				self.cur.execute( sql, [rltExRe] )	#クエリ
 				rlts = self.cur.fetchone()	#結果を１つずつ取り出す ※部品番号が唯一のため成立
 				tmp = ""
 				if rlts is None:	#データベースにない場合の処理
 					#通知(NoData)
 					for ii in range( 5 ):
-						if ii == 0:
-							tmp = "No Data!"
-						else:
-							tmp = ""
+						if ii == 0:	tmp = "No Data!" 
+						else:				tmp = ""
 						self.label[ii][1].setText( tmp )
 						self.label[ii][1].adjustSize()
 					time.sleep( 0 )
@@ -126,6 +161,12 @@ class GetPartInfo(QMainWindow):
 							if ii == 0 : pyperclip.copy( rr )
 							if rr is None : tmp = ""	#Noneで文字列結合するとエラー発動
 							else					: tmp = rr
+							cnt = 1
+							while(1):
+								if ii == 5 and len(tmp) > 20*cnt:
+									tmp = tmp[:20*cnt] + "\n" + tmp[20*cnt:]
+									cnt+=1
+								else: break	#forから抜け出し
 							self.label[ii][1].setText( tmp )
 							self.label[ii][1].adjustSize()
 					time.sleep( 0 )
@@ -135,8 +176,8 @@ class GetPartInfo(QMainWindow):
 	def ReadMe( self, checked ):
 		self.rd = ReadMe(  )
 		self.rd.setWindowTitle("ReadMe")	#窓のタイトル
-		self.rd.resize( 480, 320 )	#窓のサイズ
-		self.rd.setFixedSize( 480, 320 )
+		self.rd.resize( 400, 460 )	#窓のサイズ
+		self.rd.setFixedSize( 400, 460 )
 
 		item = [
 			[	"終了方法",
@@ -147,6 +188,12 @@ class GetPartInfo(QMainWindow):
 				"1.窓の上端をドラッグ",
 				"2.マウスで適度なところへ移動",
 				"3.ドラッグを離す"
+			],[
+				"仕様",
+				"・常時前面表示",
+				"・安易に消せない(通知領域で可能)",
+				"・備考表示がチープ",
+				"・クリップボードが侵される"
 			],[
 				"既知の問題点",
 				"・高速にコピーをくり返した場合に落ちる.",
@@ -167,7 +214,7 @@ class GetPartInfo(QMainWindow):
 					col = 20
 				myStr[ii][jj].setAlignment( Qt.AlignLeft )	#左揃え
 				myStr[ii][jj].adjustSize()
-				myStr[ii][jj].move( col, 25*cnt)#25*jj+100*ii )			#ラベルの位置
+				myStr[ii][jj].move( col, 25*cnt)	#ラベルの位置
 
 				#セクションの最後でスペース
 				add=1
