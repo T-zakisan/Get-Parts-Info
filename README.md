@@ -6,7 +6,7 @@
 
 ### モジュールのインストール
 ```
-pip install --force-reinstall -v pyperclip==1.8.2      
+pip install --force-reinstall -v pyperclip==1.8.2　#1.9：メソッドが使えない
 pip install pyodbc
 pip install threading
 pip install pystray
