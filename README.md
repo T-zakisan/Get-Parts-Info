@@ -5,6 +5,7 @@
 
 
 ### モジュールのインストール
+その他必要に応じたモジュールを追加すること！
 ```
 pip install --force-reinstall -v pyperclip==1.8.2　#1.9：メソッドが使えない
 pip install pyodbc
