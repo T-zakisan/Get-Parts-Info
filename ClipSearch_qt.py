@@ -238,7 +238,7 @@ class ReadMe( QWidget ):
 if __name__ == '__main__':
 	app = QApplication( sys.argv )	#Qtを初期化
 	gpi = GetPartInfo(	path_db = Path_DB, 
-											path_imIC = base_dir() / Path_ICON )
+				path_imIC = base_dir() / Path_ICON )
 	eventExit = threading.Event()
 	menu = Menu( MenuItem( 'ReadMe', gpi.ReadMe ), MenuItem( 'Exit', gpi.Exit ) )
 	icon = Icon( "icon", gpi.im, "部品番号チェッカ", menu = menu )
