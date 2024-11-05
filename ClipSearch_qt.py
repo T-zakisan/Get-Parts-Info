@@ -1,9 +1,7 @@
 import sys
-import pyperclip#							#クリップボード
 import time										#for sleep
 import re											#正規表現
 import pyodbc									#データベース
-import threading							#並列(別スレッド)処理
 from pystray import Icon, MenuItem, Menu #タスクトレイ
 from PIL import Image					#画像
 from PyQt5.QtWidgets import *
@@ -28,21 +26,28 @@ def base_dir():
 
 
 class GetPartInfo(QMainWindow):
-
+	
 	def __init__( self, path_db, path_imIC ):
 		super().__init__()	#クラスの初期化
 		self.cur, self.conn = self.DBinit( path_db )	#pyodbc(データベース)の戻り値(接続先)
 		self.im = Image.open( path_imIC )
+		self.clipboard = QApplication.clipboard() 
+		self.prev_clipboard_text = ""  # 前回のクリップボード内容
 		self.createWindow()	#窓生成
+
+		# 定期的なクリップボードチェック
+		self.clipboard_timer = QTimer(self)
+		self.clipboard_timer.timeout.connect(self.checkClipboard)
+		self.clipboard_timer.start( 100 )  # 100msごとにチェック
 
 
 	def __del__( self ):
 		self.conn.close()
+		QApplication.quit()
 
 
 	def Exit( self ):
 		icon.stop()
-		eventExit.set()
 
 
 	def DBinit( self, path ):
@@ -60,8 +65,11 @@ class GetPartInfo(QMainWindow):
 	def createWindow( self ):
 		self.setWindowTitle("Get Parts info")	#窓のタイトル
 		self.setWindowFlags( Qt.Window | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint )	#常前面表示
+		self.setStyleSheet("self.MenuBar{color:#000000;}")	
+		
 		self.setGeometry( 0, 0, 320, 210)			#窓のサイズ
 		self.setFixedSize( 320, 210 )
+
 
 		# ラベルの表示 #####
 		LABEL = [
@@ -110,27 +118,24 @@ class GetPartInfo(QMainWindow):
 			self.btn.setText('●')	#●(動作中)に変更
 			self.btn.setStyleSheet("QPushButton{color:#000000;}")	#文字色：黒
 			tmpClr = "#000000"	#ラベルの文字色：黒(設定値のみ)
-			pyperclip.copy( '' )	#クリップボードを初期化
+			self.clipboard.clear()  # クリップボードを初期化
 		for ii in range( len( self.label ) ):
 			for jj in range( len( self.label[ii] ) ):
 				self.label[ii][jj].setStyleSheet("QLabel{color:"+tmpClr+";}")	#ラベルの文字色
 
 
-	### Wクリックしたときのイベント ###
+	## Wクリックしたときのイベント ###
 	def mouseDoubleClickEvent( self, e ):
 		self.opsw( )	
 
 
+	def checkClipboard(self):
+		"""クリップボードの内容を監視し、変更があれば処理"""
+		current_text = self.clipboard.text()
+		if current_text != self.prev_clipboard_text and self.btn.text() == "●":
+				self.prev_clipboard_text = current_text  # 変更を記録
+				self.CheckCode(current_text)
 
-	def CheckCB( self ):
-		pyperclip.copy( '' )	#クリップボードを初期化
-		while not( eventExit.is_set()  ):
-			time.sleep( 0 )	#適当なDelay
-			code = pyperclip.waitForNewPaste()	#クリップボードの更新
-			if( code != "" and 
-					isinstance( code, str ) == True and 
-					self.btn.text() == "●" ):	#クリップボードの内容が空でなく、文字列の場合
-				GetPartInfo.CheckCode( self, code )	#クリップボードの内容をチェック
 
 
 	#テキストの内容を正規表現でマッチした場合、データベースで検索し、通知へ
@@ -145,17 +150,17 @@ class GetPartInfo(QMainWindow):
 			self.cur.execute( sql, rltsExRe[0] )	#クエリ
 			rlts = self.cur.fetchone()	#結果を１つずつ取り出す ※部品番号が唯一のため成立
 			tmp = ""
-			pyperclip.copy( '' )
+			self.clipboard.setText( "" ) 
 			for ii in range( len( self.label ) ):
 				if rlts is None:
 					if ii == 0:
 						tmp = "No Data!"
-						pyperclip.copy( code )
+						self.clipboard.setText( code ) 
 					else:	tmp = ""
 				else:
 					if rlts[ ii ] is None : tmp = ""	#Noneで文字列結合するとエラー発動
 					else				  			  : tmp = rlts[ ii ]
-					if ii == 0: pyperclip.copy( tmp )
+					if ii == 0: self.clipboard.setText( tmp )
 					cnt = 1
 					if ii == 5:
 						while( 1 ):
@@ -196,7 +201,8 @@ class GetPartInfo(QMainWindow):
 				"・備考表示がチープ"
 			],[
 				"既知の問題点",
-				"・[●]時にExcelへの貼付けが一度でできない"
+				"・高速にコピーを繰り返すと処理が落ちる.",
+				"→焦んなって！"
 			]
 		]
 		myStr = item.copy()
@@ -228,19 +234,13 @@ class ReadMe( QWidget ):
 		super().__init__( )
 
 
-
 #main()メソッド
 if __name__ == '__main__':
 	app = QApplication( sys.argv )	#Qtを初期化
 	gpi = GetPartInfo(	path_db = Path_DB, 
 											path_imIC = base_dir() / Path_ICON )
-	eventExit = threading.Event()
 	menu = Menu( MenuItem( 'ReadMe', gpi.ReadMe ), MenuItem( 'Exit', gpi.Exit ) )
 	icon = Icon( "icon", gpi.im, "部品番号チェッカ", menu = menu )
-
-	CheckTrd = threading.Thread( target = gpi.CheckCB )
-	CheckTrd.start()
 	icon.run()
-	pyperclip.copy( 'GetPartsInfo' )	#Exitのための処理
-	CheckTrd.join()
+	gpi.clipboard.setText('GetPartsInfo')
 	sys.exit( gpi.Exit )
