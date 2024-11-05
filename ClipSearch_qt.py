@@ -10,7 +10,6 @@ from PyQt5 import QtGui
 from pathlib import Path
 
 
-
 # 環境ごとの設定 #########################################################
 Path_DB     = ".\\部品番号台帳.accdb" 
 Path_ICON   = r".\favicon.ico"
@@ -38,7 +37,7 @@ class GetPartInfo(QMainWindow):
 		# 定期的なクリップボードチェック
 		self.clipboard_timer = QTimer(self)
 		self.clipboard_timer.timeout.connect(self.checkClipboard)
-		self.clipboard_timer.start( 100 )  # 100msごとにチェック
+		self.clipboard_timer.start( 200 )  # 200msごとにチェック
 
 
 	def __del__( self ):
@@ -65,21 +64,16 @@ class GetPartInfo(QMainWindow):
 	def createWindow( self ):
 		self.setWindowTitle("Get Parts info")	#窓のタイトル
 		self.setWindowFlags( Qt.Window | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint )	#常前面表示
-		self.setStyleSheet("self.MenuBar{color:#000000;}")	
-		
+		self.setStyleSheet("self.MenuBar{color:#000000;}")			
 		self.setGeometry( 0, 0, 320, 210)			#窓のサイズ
 		self.setFixedSize( 320, 210 )
 
+		# ドラッグ操作の設定
+		self.mousePressEvent = self.startDrag
+		self.mouseMoveEvent = self.performDrag
 
 		# ラベルの表示 #####
-		LABEL = [
-			"部品番号：",
-			"名　　称：",
-			"型　式　：",
-			"型　式２：",
-			"型　式３：",
-			"備　　考："
-		]
+		LABEL = [	"部品番号：", "名　　称：", "型　式　：",  "型　式２：", "型　式３：", "備　　考：" ]
 		self.label = [ ["",""], ["",""], ["",""], ["",""], ["",""], ["",""] ]
 		for ii in range( len( self.label ) ):
 			for jj in range( len( self.label[ii] ) ):
@@ -102,9 +96,18 @@ class GetPartInfo(QMainWindow):
 		self.btn.setCheckable( True )						
 		self.btn.setGeometry( 270, 0, 40, 25 )	#サイズと表示位置
 		self.btn.pressed.connect( self.opsw )		#押したときの動作
-
 		self.show()	#窓を表示
 
+
+	def startDrag(self, event):
+			if event.button() == Qt.LeftButton:
+					self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+					event.accept()
+
+	def performDrag(self, event):
+			if event.buttons() == Qt.LeftButton:
+					self.move(event.globalPos() - self.drag_position)
+					event.accept()
 
 	### 動作ボタンを押したときのイベント ###
 	def opsw( self ):
@@ -137,10 +140,9 @@ class GetPartInfo(QMainWindow):
 				self.CheckCode(current_text)
 
 
-
 	#テキストの内容を正規表現でマッチした場合、データベースで検索し、通知へ
 	def CheckCode( self, code ):	
-		#クリップボードのテキストを正s規表現でマッチ
+		#クリップボードのテキストを正規表現でマッチ
 		ptn = '[A-Z]{2}[0-9]{6}'	#部品番号のパタン ※組図以外
 		rltsExRe	= re.search( ptn, code )	#クリップボードのテキストがptnと網羅的に一致
 
@@ -149,8 +151,8 @@ class GetPartInfo(QMainWindow):
 			sql = "SELECT 品コード, 品名, 型式, 型式2, 型式3, 備考 FROM 部品番号 WHERE 品コード = ?"	#SQL文
 			self.cur.execute( sql, rltsExRe[0] )	#クエリ
 			rlts = self.cur.fetchone()	#結果を１つずつ取り出す ※部品番号が唯一のため成立
+			outStr = ""
 			tmp = ""
-			self.clipboard.setText( "" ) 
 			for ii in range( len( self.label ) ):
 				if rlts is None:
 					if ii == 0:
@@ -161,14 +163,12 @@ class GetPartInfo(QMainWindow):
 					if rlts[ ii ] is None : tmp = ""	#Noneで文字列結合するとエラー発動
 					else				  			  : tmp = rlts[ ii ]
 					if ii == 0: self.clipboard.setText( tmp )
-					cnt = 1
 					if ii == 5:
-						while( 1 ):
-							if len( tmp ) > 20*cnt:
-								tmp = tmp[ : 20*cnt ] + "\n" + tmp[ 20*cnt : ]
-								cnt += 1
-							else: break	#forから抜け出し
-				self.label[ii][1].setText( tmp )
+						outStr = ""
+						for jj in range( 0, len( tmp ), 20 ):
+							outStr += tmp[ jj: jj+20 ] + "\n"
+					else: outStr = tmp
+				self.label[ii][1].setText( outStr )
 				self.label[ii][1].adjustSize()
 				time.sleep( 0 )
 
@@ -186,7 +186,7 @@ class GetPartInfo(QMainWindow):
 				"2.Exit"
 			],[
 				"窓移動",
-				"1.窓の上端をドラッグ",
+				"1.窓のどこかをドラッグ(右クリっぱ)",
 				"2.マウスで適度なところへ移動",
 				"3.ドラッグを離す"
 			],[
