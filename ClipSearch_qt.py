@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 # 環境ごとの設定 #########################################################
-Path_DB     = ".\\testDB.accdb" 
+Path_DB     = ".\\部品番号台帳.accdb" 
 Path_ICON   = r".\favicon.ico"
 ##########################################################################
 
@@ -78,7 +78,6 @@ class GetPartInfo(QMainWindow):
 				if jj == 0:
 					self.label[ii][jj] = QLabel( LABEL[ii], self )	#ラベルを追加
 					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 12 ) )	#書式
-					# self.label[ii][jj].setText( LABEL[ii] )
 				else:
 					self.label[ii][jj] = QLabel( "", self )	#ラベルを追加
 					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 12, QtGui.QFont.Bold ) )
@@ -86,6 +85,7 @@ class GetPartInfo(QMainWindow):
 				self.label[ii][jj].setAlignment( Qt.AlignLeft )	#中央揃え
 				self.label[ii][jj].move( 80*jj+10, 25*ii+5 )			#ラベルの位置
 				if ii == 5 and jj == 1 :
+					#備考
 					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 11, QtGui.QFont.Bold ) )
 					self.label[ii][jj].move( 80*0+10, 25*(ii+1)+5 )			#ラベルの位置
 		# ボタン #####
@@ -106,7 +106,7 @@ class GetPartInfo(QMainWindow):
 			self.btn.setStyleSheet("QPushButton{color:#c00000;}")	#文字色：真紅
 			tmpClr = "#AAAAAA"	#ラベルの文字色：灰色(設定値のみ)
 		else:
-			#■(停止)のときの処理
+			#■(停止)のときの処理ZI010120
 			self.btn.setText('●')	#●(動作中)に変更
 			self.btn.setStyleSheet("QPushButton{color:#000000;}")	#文字色：黒
 			tmpClr = "#000000"	#ラベルの文字色：黒(設定値のみ)
@@ -125,59 +125,55 @@ class GetPartInfo(QMainWindow):
 	def CheckCB( self ):
 		pyperclip.copy( '' )	#クリップボードを初期化
 		while not( eventExit.is_set()  ):
-			time.sleep( 0.2 )	#適当なDelay
-			code = pyperclip.waitForPaste()	#クリップボードの更新
-			#code = pyperclip.waitForNewPaste()	#クリップボードの更新
+			time.sleep( 0 )	#適当なDelay
+			code = pyperclip.waitForNewPaste()	#クリップボードの更新
 			if( code != "" and 
 					isinstance( code, str ) == True and 
-					self.btn.text() == "動作" ):	#クリップボードの内容が空でなく、文字列の場合
+					self.btn.text() == "●" ):	#クリップボードの内容が空でなく、文字列の場合
 				GetPartInfo.CheckCode( self, code )	#クリップボードの内容をチェック
 
 
 	#テキストの内容を正規表現でマッチした場合、データベースで検索し、通知へ
 	def CheckCode( self, code ):	
-		#クリップボードのテキストを正規表現でマッチ
+		#クリップボードのテキストを正s規表現でマッチ
 		ptn = '[A-Z]{2}[0-9]{6}'	#部品番号のパタン ※組図以外
-		rltsExRe	= re.findall( ptn, code )	#クリップボードのテキストがptnと網羅的に一致
+		rltsExRe	= re.search( ptn, code )	#クリップボードのテキストがptnと網羅的に一致
 
 		#部品番号に一致がある場合の処理
 		if rltsExRe:
-			for rltExRe in rltsExRe:	#複数ある部品番号でくり返し
-				# pyperclip.copy( '' )
-				sql = "SELECT 品コード, 品名, 型式, 型式2, 型式3, 備考 FROM 部品番号 WHERE 品コード = ?"	#SQL文
-				self.cur.execute( sql, [rltExRe] )	#クエリ
-				rlts = self.cur.fetchone()	#結果を１つずつ取り出す ※部品番号が唯一のため成立
-				tmp = ""
-				if rlts is None:	#データベースにない場合の処理
-					#通知(NoData)
-					for ii in range( 5 ):
-						if ii == 0:	tmp = "No Data!" 
-						else:				tmp = ""
-						self.label[ii][1].setText( tmp )
-						self.label[ii][1].adjustSize()
-					time.sleep( 0 )
-				else:	#データベースにヒットした場合の処理
-					for ii, rr in enumerate( rlts ):
-							if ii == 0 : pyperclip.copy( rr )
-							if rr is None : tmp = ""	#Noneで文字列結合するとエラー発動
-							else					: tmp = rr
-							cnt = 1
-							while(1):
-								if ii == 5 and len(tmp) > 20*cnt:
-									tmp = tmp[:20*cnt] + "\n" + tmp[20*cnt:]
-									cnt+=1
-								else: break	#forから抜け出し
-							self.label[ii][1].setText( tmp )
-							self.label[ii][1].adjustSize()
-					time.sleep( 0 )
-				break	#forから抜け出し
+			sql = "SELECT 品コード, 品名, 型式, 型式2, 型式3, 備考 FROM 部品番号 WHERE 品コード = ?"	#SQL文
+			self.cur.execute( sql, rltsExRe[0] )	#クエリ
+			rlts = self.cur.fetchone()	#結果を１つずつ取り出す ※部品番号が唯一のため成立
+			tmp = ""
+			pyperclip.copy( '' )
+			for ii in range( len( self.label ) ):
+				if rlts is None:
+					if ii == 0:
+						tmp = "No Data!"
+						pyperclip.copy( code )
+					else:	tmp = ""
+				else:
+					if rlts[ ii ] is None : tmp = ""	#Noneで文字列結合するとエラー発動
+					else				  			  : tmp = rlts[ ii ]
+					if ii == 0: pyperclip.copy( tmp )
+					cnt = 1
+					if ii == 5:
+						while( 1 ):
+							if len( tmp ) > 20*cnt:
+								tmp = tmp[ : 20*cnt ] + "\n" + tmp[ 20*cnt : ]
+								cnt += 1
+							else: break	#forから抜け出し
+				self.label[ii][1].setText( tmp )
+				self.label[ii][1].adjustSize()
+				time.sleep( 0 )
+
 
 
 	def ReadMe( self, checked ):
 		self.rd = ReadMe(  )
 		self.rd.setWindowTitle("ReadMe")	#窓のタイトル
-		self.rd.resize( 400, 460 )	#窓のサイズ
-		self.rd.setFixedSize( 400, 460 )
+		self.rd.resize( 400, 560 )	#窓のサイズ
+		self.rd.setFixedSize( 400, 560 )
 
 		item = [
 			[	"終了方法",
@@ -200,8 +196,7 @@ class GetPartInfo(QMainWindow):
 				"・備考表示がチープ"
 			],[
 				"既知の問題点",
-				"・高速にコピーをくり返した場合に落ちる.",
-				"→焦んなって！"
+				"・[●]時にExcelへの貼付けが一度でできない"
 			]
 		]
 		myStr = item.copy()
@@ -238,7 +233,7 @@ class ReadMe( QWidget ):
 if __name__ == '__main__':
 	app = QApplication( sys.argv )	#Qtを初期化
 	gpi = GetPartInfo(	path_db = Path_DB, 
-				path_imIC = base_dir() / Path_ICON )
+											path_imIC = base_dir() / Path_ICON )
 	eventExit = threading.Event()
 	menu = Menu( MenuItem( 'ReadMe', gpi.ReadMe ), MenuItem( 'Exit', gpi.Exit ) )
 	icon = Icon( "icon", gpi.im, "部品番号チェッカ", menu = menu )
@@ -246,6 +241,6 @@ if __name__ == '__main__':
 	CheckTrd = threading.Thread( target = gpi.CheckCB )
 	CheckTrd.start()
 	icon.run()
-	pyperclip.copy( 'Exit GetPartsInfo' )	#Exitのための処理
+	pyperclip.copy( 'GetPartsInfo' )	#Exitのための処理
 	CheckTrd.join()
 	sys.exit( gpi.Exit )
