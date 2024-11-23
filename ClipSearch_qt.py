@@ -16,6 +16,8 @@ Path_ICON   = r".\favicon.ico"
 ##########################################################################
 
 
+
+# exe化したときのファイルパスを変更するヤツ ##########
 def base_dir():
 	if hasattr(sys, "_MEIPASS"):
 		return Path(sys._MEIPASS)  # 実行ファイルで起動した場合
@@ -24,8 +26,10 @@ def base_dir():
 
 
 
+# クラス ##########
 class GetPartInfo(QMainWindow):
 	
+	# クラスの初期化 ##########
 	def __init__( self, path_db, path_imIC ):
 		super().__init__()	#クラスの初期化
 		self.cur, self.conn = self.DBinit( path_db )	#pyodbc(データベース)の戻り値(接続先)
@@ -40,15 +44,18 @@ class GetPartInfo(QMainWindow):
 		self.clipboard_timer.start( 200 )  # 200msごとにチェック
 
 
+	# クラス破壊 ##########
 	def __del__( self ):
 		self.conn.close()
 		QApplication.quit()
 
 
+	# 通知領域のアイコンから終了 ##########
 	def Exit( self ):
 		icon.stop()
 
 
+	# データベースの初期設定 ##########
 	def DBinit( self, path ):
 		db_path = []
 		db_path.append( path )	#データベースのパス
@@ -61,9 +68,14 @@ class GetPartInfo(QMainWindow):
 		return cur, conn
 
 
+	# 窓の作成 ##########
 	def createWindow( self ):
 		self.setWindowTitle("Get Parts info")	#窓のタイトル
-		self.setWindowFlags( Qt.Window | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint )	#常前面表示
+		self.setWindowFlags(
+			Qt.Window |
+			Qt.WindowStaysOnTopHint |
+			Qt.CustomizeWindowHint
+		)	#常前面表示
 		self.setStyleSheet("self.MenuBar{color:#000000;}")			
 		self.setGeometry( 0, 0, 320, 210)			#窓のサイズ
 		self.setFixedSize( 320, 210 )
@@ -73,7 +85,9 @@ class GetPartInfo(QMainWindow):
 		self.mouseMoveEvent = self.performDrag
 
 		# ラベルの表示 #####
-		LABEL = [	"部品番号：", "名　　称：", "型　式　：",  "型　式２：", "型　式３：", "備　　考：" ]
+		LABEL = [
+			"部品番号：", "名　　称：", "型　式　：",
+			"型　式２：", "型　式３：", "備　　考：" ]
 		self.label = [ ["",""], ["",""], ["",""], ["",""], ["",""], ["",""] ]
 		for ii in range( len( self.label ) ):
 			for jj in range( len( self.label[ii] ) ):
@@ -99,17 +113,20 @@ class GetPartInfo(QMainWindow):
 		self.show()	#窓を表示
 
 
+	# 窓の移動開始位置 ##########
 	def startDrag(self, event):
 			if event.button() == Qt.LeftButton:
 					self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
 					event.accept()
 
+	# 窓の移動終了位置 ##########
 	def performDrag(self, event):
 			if event.buttons() == Qt.LeftButton:
 					self.move(event.globalPos() - self.drag_position)
 					event.accept()
 
-	### 動作ボタンを押したときのイベント ###
+
+	# 動作ボタンを押したときのイベント ##########
 	def opsw( self ):
 		if self.btn.text() == '●':
 			#●(動作中)のときの処理
@@ -127,23 +144,23 @@ class GetPartInfo(QMainWindow):
 				self.label[ii][jj].setStyleSheet("QLabel{color:"+tmpClr+";}")	#ラベルの文字色
 
 
-	## Wクリックしたときのイベント ###
+	# Wクリックしたときのイベント ##########
 	def mouseDoubleClickEvent( self, e ):
 		self.opsw( )	
 
 
+	# クリップボードの内容を監視し、変更があれば処理" ##########
 	def checkClipboard(self):
-		"""クリップボードの内容を監視し、変更があれば処理"""
 		current_text = self.clipboard.text()
 		if current_text != self.prev_clipboard_text and self.btn.text() == "●":
 				self.prev_clipboard_text = current_text  # 変更を記録
 				self.CheckCode(current_text)
 
 
-	#テキストの内容を正規表現でマッチした場合、データベースで検索し、通知へ
+	# キストの内容を正規表現でマッチした場合、データベースで検索し、通知へ ##########
 	def CheckCode( self, code ):	
 		#クリップボードのテキストを正規表現でマッチ
-		ptn = '[A-Z]{2}[0-9]{6}'	#部品番号のパタン ※組図以外
+		ptn = '[a-zA-Z]{2}[0-9]{6}'	#部品番号のパタン ※組図以外
 		rltsExRe	= re.search( ptn, code )	#クリップボードのテキストがptnと網羅的に一致
 
 		#部品番号に一致がある場合の処理
@@ -156,8 +173,8 @@ class GetPartInfo(QMainWindow):
 			for ii in range( len( self.label ) ):
 				if rlts is None:
 					if ii == 0:
-						tmp = "No Data!"
-						self.clipboard.setText( code ) 
+						tmp = rltsExRe[0][0:7] + "No Data!"
+						self.clipboard.setText( rltsExRe[0] ) 
 					else:	tmp = ""
 				else:
 					if rlts[ ii ] is None : tmp = ""	#Noneで文字列結合するとエラー発動
@@ -173,7 +190,7 @@ class GetPartInfo(QMainWindow):
 				time.sleep( 0 )
 
 
-
+	# 通知領域のアイコンからReadMe ##########
 	def ReadMe( self, checked ):
 		self.rd = ReadMe(  )
 		self.rd.setWindowTitle("ReadMe")	#窓のタイトル
@@ -228,13 +245,13 @@ class GetPartInfo(QMainWindow):
 		self.rd.show()
 
 
-
+# クラス ##########
 class ReadMe( QWidget ):
 	def __init__( selt ):
 		super().__init__( )
 
 
-#main()メソッド
+# main()メソッド ##########
 if __name__ == '__main__':
 	app = QApplication( sys.argv )	#Qtを初期化
 	gpi = GetPartInfo(	path_db = Path_DB, 
