@@ -36,6 +36,7 @@ class GetPartInfo(QMainWindow):
 		self.im = Image.open( path_imIC )
 		self.clipboard = QApplication.clipboard() 
 		self.prev_clipboard_text = ""  # 前回のクリップボード内容
+		self.clipboard_text = ""  #クリップボード内容
 		self.createWindow()	#窓生成
 
 		# 定期的なクリップボードチェック
@@ -151,10 +152,10 @@ class GetPartInfo(QMainWindow):
 
 	# クリップボードの内容を監視し、変更があれば処理" ##########
 	def checkClipboard(self):
-		current_text = self.clipboard.text()
-		if current_text != self.prev_clipboard_text and self.btn.text() == "●":
-				self.prev_clipboard_text = current_text  # 変更を記録
-				self.CheckCode(current_text)
+		self.current_text = self.clipboard.text()
+		if self.current_text != self.prev_clipboard_text and self.btn.text() == "●":
+				self.prev_clipboard_text = self.current_text  # 変更を記録
+				self.CheckCode( self.current_text )
 
 
 	# キストの内容を正規表現でマッチした場合、データベースで検索し、通知へ ##########
