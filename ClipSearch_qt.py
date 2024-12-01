@@ -26,6 +26,20 @@ def base_dir():
 
 
 
+# ラベルクラス ##########
+class ClickableLabel(QLabel):
+	def __init__(self, text, parent=None):
+		super().__init__(text, parent)
+
+	# ダブルクリックイベントのオーバーライド
+	def mouseDoubleClickEvent(self, event):
+		if event.button() == Qt.LeftButton:
+			clipboard = QApplication.clipboard()
+			clipboard.setText(self.text())  # ラベルのテキストをクリップボードにコピー
+
+
+
+
 # クラス ##########
 class GetPartInfo(QMainWindow):
 	
@@ -96,7 +110,8 @@ class GetPartInfo(QMainWindow):
 					self.label[ii][jj] = QLabel( LABEL[ii], self )	#ラベルを追加
 					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 12 ) )	#書式
 				else:
-					self.label[ii][jj] = QLabel( "", self )	#ラベルを追加
+					# self.label[ii][jj] = QLabel( "", self )	#ラベルを追加
+					self.label[ii][jj] = ClickableLabel( "", self ) 
 					self.label[ii][jj].setFont( QtGui.QFont( "BIZ UDゴシック", 12, QtGui.QFont.Bold ) )
 				self.label[ii][jj].adjustSize()
 				self.label[ii][jj].setAlignment( Qt.AlignLeft )	#中央揃え
